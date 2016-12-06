@@ -42,7 +42,7 @@ class Ephemeral(object):
                 $.post("encrypt", 
                        {"secret": encryptedAES.toString()}, 
                        function(result){
-                            $("#output").html("Secret was: " + mysecret + " encrypted as " + encryptedAES.toString() + "and result was: " + result);
+                            $("#output").html(result);
                        }
                 );
             });
@@ -57,7 +57,6 @@ class Ephemeral(object):
         if secret == "":
             return "No secret introduced"
         else:
-            print(secret)
             paddedLength = math.ceil(len(secret) / 16) * 16
             paddedSecret = secret.ljust(paddedLength, ' ')
             
@@ -80,7 +79,6 @@ class Ephemeral(object):
             else:
                 myredis.delete("ephemeral-" + url)
                 decryptedSecret = obj2.decrypt(cryptedSecret)
-                print(decryptedSecret)
                 return decryptedSecret
     
     @cherrypy.expose
@@ -90,7 +88,6 @@ class Ephemeral(object):
         if not myredis.exists("ephemeral-" + secretID):
             return("There's no secret here")
         else: 
-            print (myredis.get("ephemeral-" + secretID))
             return """<!doctype html>
         <html>
                 <body lang="en">
