@@ -17,8 +17,13 @@ class Ephemeral(object):
         <body lang="en">
                 <form id="encrypt">
                         <p>
-                                <label>Password or passphrase (put mouse over to see content)</label><br>
+                                <label>Password or passphrase (hover mouse over to see content)</label><br>
                                 <input id="passwd" value="Secret Passphrase" type="password">
+                        </p>
+                        <p>
+                                <label>TTL or When do you want it to disappear even if nobody have read it? (days) </label><br>
+                                <input id="ttl" value="7">
+
                         </p>
                         <p>
                                 <label>Secret</label><br>
@@ -52,7 +57,7 @@ class Ephemeral(object):
                 var encryptedAES = CryptoJS.AES.encrypt(mysecret, mypasswd);
                 console.log(encryptedAES.toString());
                 $.post("encrypt", 
-                       {"secret": encryptedAES.toString()}, 
+                       { 'secret': encryptedAES.toString(), 'ttl': ttl.value }, 
                        function(result){
                             $("#output").html(result);
                        }
@@ -64,8 +69,10 @@ class Ephemeral(object):
 </html>
 """
     @cherrypy.expose
-    def encrypt(self, secret=""):
+    def encrypt(self, secret="", ttl=""):
         myredis = redis.Redis()
+        if ttl == "":
+            ttl = 604800
         if secret == "":
             return "No secret introduced"
         else:
@@ -75,7 +82,7 @@ class Ephemeral(object):
             obj = AES.new('This is a key123', AES.MODE_CBC, 'This is an IV456')
             encryptedSecret = obj.encrypt(paddedSecret)
             url = self.random_url()
-            rc = myredis.setex("ephemeral-" + url, encryptedSecret, secretTTL)
+            rc = myredis.setex("ephemeral-" + url, encryptedSecret, int(ttl)*24*3600)
             return "<a href='/" + url + "'>This is your url </a>."
                     
     @cherrypy.expose    
@@ -89,7 +96,7 @@ class Ephemeral(object):
             if not cryptedSecret:
                 return "There is no secret there"
             else:
-                #myredis.delete("ephemeral-" + url)
+                myredis.delete("ephemeral-" + url)
                 decryptedSecret = obj2.decrypt(cryptedSecret)
                 return decryptedSecret
     
