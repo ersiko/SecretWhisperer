@@ -17,12 +17,12 @@ class Ephemeral(object):
         <body lang="en">
                 <form id="encrypt">
                         <p>
-                                <label>Password or passphrase</label><br>
-                                <input id="passwd" value="Secret Passphrase">
+                                <label>Password or passphrase (put mouse over to see content)</label><br>
+                                <input id="passwd" value="Secret Passphrase" type="password">
                         </p>
                         <p>
                                 <label>Secret</label><br>
-                                <textarea id="secret" style="width: 500px; height: 200px">This is the secret message</textarea>
+                                <textarea id="secret" style="font-size: 1pt;width: 500px; height: 200px">This is the secret message</textarea>
                         </p>
 
                         <button type="button" id="submit">Encrypt!</button>
@@ -34,6 +34,18 @@ class Ephemeral(object):
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
     <script>
         $(function() {
+            $("#passwd").mouseover(function() {
+                $("#passwd").attr('type', 'text');
+            });
+            $("#passwd").mouseleave(function() {
+                $("#passwd").attr('type', 'password');
+            });
+            $("#secret").mouseover(function() {
+                $("#secret").attr('style', 'font-size: 10pt;width: 500px; height: 200px');
+            });
+            $("#secret").mouseleave(function() {
+                $("#secret").attr('style', 'font-size: 1pt;width: 500px; height: 200px');
+            });
             $("#submit").on("click", function() {
                 var mysecret = document.forms["encrypt"]["secret"].value;
                 var mypasswd = document.forms["encrypt"]["passwd"].value.trim();
@@ -77,7 +89,7 @@ class Ephemeral(object):
             if not cryptedSecret:
                 return "There is no secret there"
             else:
-                myredis.delete("ephemeral-" + url)
+                #myredis.delete("ephemeral-" + url)
                 decryptedSecret = obj2.decrypt(cryptedSecret)
                 return decryptedSecret
     
@@ -95,30 +107,83 @@ Someone sent you a secret, right? You better have the passphrase to decrypt it, 
                                 <form id="decrypt">
                         <p>
                                 <label>Password or passphrase </label><br>
-                                <input id="passwd" value="Secret Passphrase">
+                                <input id="passwd" value="Secret Passphrase" type=password>
                         </p>
                         <button type="button" id="submit">Decrypt!</button>
                 </form>
-                <div id="output"></div>
+                <div id="output" style="display: none;">
+                    <p><label>Yout secret is (hover your mouse over the box below)</label>
+                    <br><b><textarea id='secret' style='font-size: 1pt;width: 500px; height: 200px'> " + decrypted + "</textarea>
+                    <button class="btn" id="copy" data-clipboard-target="#secret" aria-label="Copied!">
+                        <img src="https://clipboardjs.com/assets/images/clippy.svg" alt="Copy to clipboard" width=13>
+                    </button>
+                    </p></b>Now the secret has been erased. It was ephemeral, it no longer exists.
+                </div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/3.1.2/rollups/aes.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/1.5.15/clipboard.min.js"></script>
+<script src="https://netdna.bootstrapcdn.com/bootstrap/3.0.0/js/bootstrap.min.js"></script>
+<link href="https://netdna.bootstrapcdn.com/bootstrap/3.0.0/css/bootstrap.min.css" rel="stylesheet"/>
     <script>
-            $(function() {
-                $("#submit").on("click", function() {
-                    var mypasswd = document.forms["decrypt"]["passwd"].value.trim();
-                    $.post("decrypt", 
-                          { 'url': '""" + secretID + """' },
-                          function(result) {
-                            if (result == "There is no secret there") {
-                                $("#output").html(result)
-                            } else {
-                                var decrypted = CryptoJS.AES.decrypt(decodeURI(result), mypasswd).toString(CryptoJS.enc.Utf8)
-                                $("#output").html("Your secret is </br></br><b> " + decrypted + "</b></br></br>Now the secret has been erased. It was ephemeral, it no longer exists.");
-                            }
-                          }                            
-                    );
-                });                                                                                    
-            });  
+        var clipboard = new Clipboard('.btn');
+        $('.btn').tooltip({
+            trigger: 'click',
+            placement: 'bottom'
+        });
+        function setTooltip(message) {
+            $('.btn').tooltip('hide')
+                .attr('data-original-title', message)
+                .tooltip('show');
+        }
+        function hideTooltip() {
+            setTimeout(function() {
+                $('.btn').tooltip('hide');
+            }, 1000);
+        }
+        clipboard.on('success', function(e) {
+            console.info('Action:', e.action);
+            console.info('Text:', e.text);
+            console.info('Trigger:', e.trigger);
+            setTooltip('Copied!');
+            hideTooltip();
+            e.clearSelection();
+        });
+                      
+        clipboard.on('error', function(e) {
+            console.error('Action:', e.action);
+            console.error('Trigger:', e.trigger);
+            setTooltip("Sorry, it failed... You'll need to use ctrl+c");
+            hideTooltip();
+        });
+        $(function() {
+            $("#submit").on("click", function() {
+                var mypasswd = document.forms["decrypt"]["passwd"].value.trim();
+                $.post("decrypt", 
+                      { 'url': '""" + secretID + """' },
+                      function(result) {
+                        if (result == "There is no secret there") {
+                            $("#output").html(result)
+                        } else {
+                            var decrypted = CryptoJS.AES.decrypt(decodeURI(result), mypasswd).toString(CryptoJS.enc.Utf8)
+                            $("#output").show();
+                            $("#secret").html(decrypted)
+                        }
+                      }                            
+                );
+            });
+            $("#passwd").mouseover(function() {
+                $("#passwd").attr('type', 'text');
+            });
+            $("#passwd").mouseleave(function() {
+                $("#passwd").attr('type', 'password');
+            });
+            $("#secret").mouseover(function() {
+                $("#secret").attr('style', 'font-size: 10pt;width: 500px; height: 200px');
+            });
+            $("#secret").mouseleave(function() {
+                $("#secret").attr('style', 'font-size: 1pt;width: 500px; height: 200px');
+            });                                                                                                                                                                                
+        });  
     </script>
 </body>
 </html>
