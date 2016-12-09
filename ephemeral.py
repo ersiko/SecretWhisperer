@@ -210,6 +210,6 @@ if __name__ == '__main__':
     cherrypy.config.update({'server.socket_port': 6543,
                             'server.socket_host': '0.0.0.0',
                             'server.ssl_certificate': 'cert.pem',
-                            'server.ssl_private_key': 'privkey.pem',
+                            'server.ssl_private_key': 'privkey.pem'
                             })
     cherrypy.quickstart(Ephemeral())
