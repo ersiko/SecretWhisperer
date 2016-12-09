@@ -2,14 +2,14 @@ import cherrypy
 from Crypto.Cipher import AES
 from Crypto.Hash import MD5
 from Crypto import Random
-from requests.utils import quote
 import math
 import redis
 
 secretTTL = 3600
 
+
 class Ephemeral(object):
-    
+
     @cherrypy.expose
     def index(self):
         return """<!doctype html>
@@ -56,8 +56,8 @@ class Ephemeral(object):
                 var mypasswd = document.forms["encrypt"]["passwd"].value.trim();
                 var encryptedAES = CryptoJS.AES.encrypt(mysecret, mypasswd);
                 console.log(encryptedAES.toString());
-                $.post("encrypt", 
-                       { 'secret': encryptedAES.toString(), 'ttl': ttl.value }, 
+                $.post("encrypt",
+                       { 'secret': encryptedAES.toString(), 'ttl': ttl.value },
                        function(result){
                             $("#output").html(result);
                        }
@@ -68,6 +68,7 @@ class Ephemeral(object):
 </body>
 </html>
 """
+
     @cherrypy.expose
     def encrypt(self, secret="", ttl=""):
         myredis = redis.Redis()
@@ -78,14 +79,13 @@ class Ephemeral(object):
         else:
             paddedLength = math.ceil(len(secret) / 16) * 16
             paddedSecret = secret.ljust(paddedLength, ' ')
-            
             obj = AES.new('This is a key123', AES.MODE_CBC, 'This is an IV456')
             encryptedSecret = obj.encrypt(paddedSecret)
             url = self.random_url()
-            rc = myredis.setex("ephemeral-" + url, encryptedSecret, int(ttl)*24*3600)
+            myredis.setex("ephemeral-" + url, encryptedSecret, int(ttl) * 24 * 3600)
             return "<a href='/" + url + "'>This is your url </a>."
-                    
-    @cherrypy.expose    
+
+    @cherrypy.expose
     def decrypt(self, url=""):
         myredis = redis.Redis()
         if url == "":
@@ -99,14 +99,14 @@ class Ephemeral(object):
                 myredis.delete("ephemeral-" + url)
                 decryptedSecret = obj2.decrypt(cryptedSecret)
                 return decryptedSecret
-    
+
     @cherrypy.expose
-    def default(self,*args,**kwargs):
+    def default(self, *args, **kwargs):
         myredis = redis.Redis()
         secretID = cherrypy.request.path_info[1:]
         if not myredis.exists("ephemeral-" + secretID):
             return("There's no secret here")
-        else: 
+        else:
             return """<!doctype html>
         <html>
                 <body lang="en">
@@ -155,7 +155,7 @@ Someone sent you a secret, right? You better have the passphrase to decrypt it, 
             hideTooltip();
             e.clearSelection();
         });
-                      
+
         clipboard.on('error', function(e) {
             console.error('Action:', e.action);
             console.error('Trigger:', e.trigger);
@@ -165,7 +165,7 @@ Someone sent you a secret, right? You better have the passphrase to decrypt it, 
         $(function() {
             $("#submit").on("click", function() {
                 var mypasswd = document.forms["decrypt"]["passwd"].value.trim();
-                $.post("decrypt", 
+                $.post("decrypt",
                       { 'url': '""" + secretID + """' },
                       function(result) {
                         if (result == "There is no secret there") {
@@ -175,7 +175,7 @@ Someone sent you a secret, right? You better have the passphrase to decrypt it, 
                             $("#output").show();
                             $("#secret").html(decrypted)
                         }
-                      }                            
+                      }
                 );
             });
             $("#passwd").mouseover(function() {
@@ -189,20 +189,27 @@ Someone sent you a secret, right? You better have the passphrase to decrypt it, 
             });
             $("#secret").mouseleave(function() {
                 $("#secret").attr('style', 'font-size: 1pt;width: 500px; height: 200px');
-            });                                                                                                                                                                                
-        });  
+            });
+        });
     </script>
 </body>
 </html>
 """
-                        
-            
-            
+
     def random_url(self):
-        randomString = Random.get_random_bytes(20)
-        md5hash = MD5.new(randomString).hexdigest()
+        myredis = redis.Redis()
+        exists = True
+        while exists:
+            randomString = Random.get_random_bytes(20)
+            md5hash = MD5.new(randomString).hexdigest()
+            exists = myredis.exists("ephemeral-" + md5hash)
         return md5hash
-        
+
+
 if __name__ == '__main__':
-    cherrypy.config.update({'server.socket_port': 6543, 'server.socket_host': '0.0.0.0'})
+    cherrypy.config.update({'server.socket_port': 6543,
+                            'server.socket_host': '0.0.0.0',
+                            'server.ssl_certificate': 'cert.pem',
+                            'server.ssl_private_key': 'privkey.pem',
+                            })
     cherrypy.quickstart(Ephemeral())
