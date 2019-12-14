@@ -4,6 +4,7 @@ from Crypto.Hash import MD5
 from Crypto import Random
 import math
 import redis
+import os
 
 secretTTL = 3600
 
@@ -82,7 +83,7 @@ class Ephemeral(object):
             obj = AES.new('This is a key123', AES.MODE_CBC, 'This is an IV456')
             encryptedSecret = obj.encrypt(paddedSecret)
             url = self.random_url()
-            myredis.setex("ephemeral-" + url, encryptedSecret, int(ttl) * 24 * 3600)
+            myredis.setex("ephemeral-" + url, int(ttl) * 24 * 3600, encryptedSecret)
             return "<a href='/" + url + "'>This is your url </a>."
 
     @cherrypy.expose
@@ -208,8 +209,15 @@ Someone sent you a secret, right? You better have the passphrase to decrypt it, 
 
 if __name__ == '__main__':
     cherrypy.config.update({'server.socket_port': 6543,
-                            'server.socket_host': '0.0.0.0',
-                            'server.ssl_certificate': 'cert.pem',
+                            #'server.socket_host': '0.0.0.0',
+                            #'server.ssl_certificate': 'cert.pem',
                             'server.ssl_private_key': 'privkey.pem'
                             })
-    cherrypy.quickstart(Ephemeral())
+    conf = {
+        '/': {
+            'tools.staticdir.on': True,
+            'tools.staticdir.dir': os.getcwd() + '/static'
+        }
+    }
+
+    cherrypy.quickstart(Ephemeral(), "/", config=conf)
