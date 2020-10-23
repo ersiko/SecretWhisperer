@@ -1,0 +1,3 @@
+cherrypy
+pycripto
+redis
